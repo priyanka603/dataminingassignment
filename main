@@ -1,0 +1,255 @@
+# CS6405 - Data Mining - First Assignment
+
+Lecturer: Dr Andrea Visentin
+
+
+## Submission
+
+This assignment is **due on 03/03/24 at 23:59**. You should submit a single .ipnyb file with your python code and analysis electronically via Canvas.
+Please note that this assignment will account for **25 Marks** of your module grade.
+
+## Declaration
+
+By submitting this assignment. I agree to the following:
+
+<font color="red">“I have read and understand the UCC academic policy on plagiarism and I agree to the
+requirements set out thereby in relation to plagiarism and referencing. I confirm that I
+have referenced and acknowledged properly all sources used in preparation of this
+assignment.
+I declare that this assignment is entirely my own work based on my personal study. I
+further declare that I have not engaged the services of another to either assist me in, or
+complete this assignment”</font>
+
+## Specification
+
+The objective of this project is to build a k-Nearest Neighbour algorithm that takes as input training and test dataset and will predict the target binary variable with a reasonable degree of accuracy.
+
+You will find a template for your python code in Canvas along with the dataset. In this project, you must implement your own machine learning library and therefore **you are only allowed to use the following python packages and libraries: NumPy, Pandas.**
+
+This project focuses on the Titanic dataset that we used during the lectures. You can find the dataset at:
+
+https://github.com/andvise/DataAnalyticsDatasets/blob/main/titanic.csv
+
+
+# Tasks:
+
+
+# Data Preparation (5 marks)
+
+
+
+1.  Load the dataset on Colab
+
+import pandas as pd
+
+
+url = "https://raw.githubusercontent.com/andvise/DataAnalyticsDatasets/main/titanic.csv"
+titanic_data = pd.read_csv(url)
+
+print(titanic_data.head())
+
+
+
+2. Display the attributes' name and their data type
+
+
+
+import pandas as pd
+
+url = "https://raw.githubusercontent.com/andvise/DataAnalyticsDatasets/main/titanic.csv"
+titanic_data = pd.read_csv(url)
+
+print("Attribute Name\t\tData Type")
+print("------------------------------------")
+for column in titanic_data.columns:
+    print(f"{column}\t\t{titanic_data[column].dtype}")
+
+3. Delete the columns that should not be included in a k-NN technique. Explain why you removed them in 1-2 sentences.
+
+
+
+titanic_data.drop(columns=['PassengerId', 'Name', 'Fare'], inplace=True)
+
+4. Replace all missing values with 0
+
+titanic_data.fillna(0, inplace=True)
+5. Transform the Sex column into a numerical one
+titanic_data['Sex'] = titanic_data['Sex'].map({'male': 0, 'female': 1})
+
+6. Use **Survived** as the target label and the rest of the data frame as features
+X = titanic_data.drop(columns=['Survived'])
+y = titanic_data['Survived']
+
+5. Divide your dataset into 80% for training and 20% for test
+
+train_ratio = 0.8
+test_ratio = 1 - train_ratio
+train_size = int(train_ratio * len(titanic_data))
+X_train, X_test = X[:train_size], X[train_size:]
+y_train, y_test = y[:train_size], y[train_size:]
+6. Scale the columns using min-max scalers
+
+import numpy as np
+
+def min_max_scaler(data):
+    min_vals = np.min(data, axis=0)
+    max_vals = np.max(data, axis=0)
+    scaled_data = (data - min_vals) / (max_vals - min_vals)
+    return scaled_data, min_vals, max_vals
+
+X_scaled, min_vals, max_vals = min_max_scaler(X.values)
+
+X_scaled_df = pd.DataFrame(X_scaled, columns=X.columns)
+
+print(X_scaled_df.head())
+
+7. Print the shape of the train and test set  
+print("Training set shape (X, y):", X_train.shape, y_train.shape)
+print("Test set shape (X, y):", X_test.shape, y_test.shape)
+# NN implementation (10 Marks)
+
+1. Implement your NN method. To predict **each** point (query point) of the test set, you need to:
+
+
+> a. Find the training point with the smallest **Euclidian** distance  with the query point
+
+
+  
+> b. Use as a prediction the target value of the point with the smallest distance
+to the query point
+2. Compute the accuracy
+
+import numpy as np
+
+class NearestNeighbor:
+    def __init__(self):
+        pass
+
+    def fit(self, X_train, y_train):
+        self.X_train = X_train
+        self.y_train = y_train
+
+    def predict(self, X_test):
+        y_pred = []
+        for x in X_test:
+            min_dist = float('inf')
+            min_index = -1
+            for i, x_train in enumerate(self.X_train):
+                dist = np.linalg.norm(x - x_train)
+                if dist < min_dist:
+                    min_dist = dist
+                    min_index = i
+            y_pred.append(self.y_train[min_index])
+        return np.array(y_pred)
+
+    def accuracy(self, y_true, y_pred):
+        return np.mean(y_true == y_pred)
+nn = NearestNeighbor()
+
+nn.fit(X_train.values, y_train.values)
+
+y_pred = nn.predict(X_test.values)
+
+accuracy = nn.accuracy(y_test.values, y_pred)
+print("Accuracy:", accuracy)
+
+# k-NN implementation (10 Marks)
+
+1. Extend the previous implementation by using the average of the k closest neighbours as a prediction
+
+2. Add the **Manhattan** and **Hamming** distance.
+
+2. Compute the accuracy
+
+> a. Is it more accurate compared to the previous implementation?
+
+import numpy as np
+
+def euclidean_distance(x1, x2):
+    return np.sqrt(np.sum((x1 - x2) ** 2))
+
+def manhattan_distance(x1, x2):
+    return np.sum(np.abs(x1 - x2))
+
+def hamming_distance(x1, x2):
+    return np.sum(x1 != x2)
+
+def knn_predict_avg(X_train, y_train, X_test, k=5, distance='euclidean'):
+    predictions = []
+    for query_point in X_test:
+        distances = []
+        for train_point in X_train:
+            if distance == 'euclidean':
+                dist = euclidean_distance(query_point, train_point)
+            elif distance == 'manhattan':
+                dist = manhattan_distance(query_point, train_point)
+            elif distance == 'hamming':
+                dist = hamming_distance(query_point, train_point)
+            distances.append(dist)
+        sorted_indices = np.argsort(distances)
+        nearest_neighbor_indices = sorted_indices[:k]
+        nearest_neighbor_labels = y_train[nearest_neighbor_indices]
+        avg_prediction = np.mean(nearest_neighbor_labels)
+        rounded_prediction = np.round(avg_prediction)
+        predictions.append(rounded_prediction)
+    return np.array(predictions)
+
+def accuracy_score(y_true, y_pred):
+    correct = np.sum(y_true == y_pred)
+    total = len(y_true)
+    accuracy = correct / total
+    return accuracy
+
+k = 5
+y_pred_euclidean = knn_predict_avg(X_train.values, y_train.values, X_test.values, k=k, distance='euclidean')
+y_pred_manhattan = knn_predict_avg(X_train.values, y_train.values, X_test.values, k=k, distance='manhattan')
+y_pred_hamming = knn_predict_avg(X_train.values, y_train.values, X_test.values, k=k, distance='hamming')
+
+accuracy_euclidean = accuracy_score(y_test.values, y_pred_euclidean)
+accuracy_manhattan = accuracy_score(y_test.values, y_pred_manhattan)
+accuracy_hamming = accuracy_score(y_test.values, y_pred_hamming)
+
+print("Accuracy (Euclidean):", accuracy_euclidean)
+print("Accuracy (Manhattan):", accuracy_manhattan)
+print("Accuracy (Hamming):", accuracy_hamming)
+
+3. Test your approach for k  values = [1, 3, 5, 7] and the three distance measures
+
+> a. Which is the best combination?
+
+> b. How can you improve the results?
+
+k_values = [1, 3, 5, 7]
+distance_measures = ['euclidean', 'manhattan', 'hamming']
+
+best_accuracy = 0
+best_combination = None
+
+for k in k_values:
+    for distance_measure in distance_measures:
+        y_pred = knn_predict_avg(X_train.values, y_train.values, X_test.values, k=k, distance=distance_measure)
+
+        accuracy = accuracy_score(y_test.values, y_pred)
+
+        print(f"Accuracy (k={k}, Distance={distance_measure}): {accuracy}")
+
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_combination = (k, distance_measure)
+
+print("\nBest combination:", best_combination)
+print("Best accuracy:", best_accuracy)
+
+**Reminder: You can not use any library, with the exception of pandas and NumPy. So scikit-learn is forbidden!**
+## Marking Scheme
+**Program Correctness:** Your program should work correctly on all inputs (including new datasets). Also, if there are any specifications about how the program should be written, or how the output should appear, those specifications should be followed.
+
+**Readability:** Variables functions should have meaningful names. The code should be organised into functions/methods where appropriate. There should be an appropriate amount of white space so that the code is readable, and the indentation should be consistent.
+
+**Documentation:** your code and functions/methods should be appropriately commented. However, not every line should be commented because that makes your code overly busy. Think carefully about where comments are added.
+
+
+**Code Elegance:** There are many ways to write the same functionality into your code, and some of them are needlessly slow or complicated. For example, if you are repeating the same code, it should be inside creating a new method/function or for loop
+
+**Code efficiency:** The implementation is logically well-designed without inappropriate
+design choices (e.g., unnecessary loops).
